@@ -24,33 +24,43 @@ func IncrementNonce(n []byte) []byte {
 
 // ReadFrom
 func ReadFrom(c *net.TCPConn, k, n []byte, hasTime bool) ([]byte, []byte, error) {
+	// 第二次接收 请求内容的长度值(下次接收长度的加密值)[加密后的值长度总是18]
 	b := make([]byte, 18)
 	if _, err := io.ReadFull(c, b); err != nil {
 		return nil, nil, err
 	}
+
+	// 解密加密值
 	n = IncrementNonce(n)
 	d, err := ant.AESGCMDecrypt(b, k, n)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// 约定好的大端序排序 取值
 	l := int(binary.BigEndian.Uint16(d))
 	b = make([]byte, l)
+
+	// 第三次接收 要请求地址类型,主机和端口
 	if _, err := io.ReadFull(c, b); err != nil {
 		return nil, nil, err
 	}
+	// 解密地址类型,主机和端口
 	n = IncrementNonce(n)
 	d, err = ant.AESGCMDecrypt(b, k, n)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// 在是代理客户端发过来 CONNECT 方法时有效
 	if hasTime {
 		i, err := strconv.Atoi(string(d[0:10]))
 		if err != nil {
 			return nil, nil, err
 		}
+		// 请求大于 90秒 丢弃
 		if time.Now().Unix()-int64(i) > 90 {
+			// 为什么需要sleep?
 			time.Sleep(time.Duration(ant.Random(1, 60*10)) * time.Second)
 			return nil, nil, errors.New("Expired request")
 		}
@@ -62,26 +72,40 @@ func ReadFrom(c *net.TCPConn, k, n []byte, hasTime bool) ([]byte, []byte, error)
 // WriteTo
 func WriteTo(c *net.TCPConn, d, k, n []byte, needTime bool) ([]byte, error) {
 	if needTime {
+		//  在是 CONNECT 方法时有效
 		d = append(bytes.NewBufferString(strconv.Itoa(int(time.Now().Unix()))).Bytes(), d...)
 	}
 
 	i := len(d) + 16
 	bb := make([]byte, 2)
+
+	// 大端序 这个概念不太懂的同学可以看下这个链接http://www.ruanyifeng.com/blog/2016/11/byte-order.html
+	// 大端序和小端序的不同是一种栈的队序问题,而不是长度大小问题
+	// 这里以大端序排序
 	binary.BigEndian.PutUint16(bb, uint16(i))
+
+	// 密码的加密手段 小端序
 	n = IncrementNonce(n)
+
+	// 把 http 请求的内容长度值 加密
 	b, err := ant.AESGCMEncrypt(bb, k, n)
 	if err != nil {
 		return nil, err
 	}
+
+	// 第二次写入 请求内容 长度值(加密后的)
 	if _, err := c.Write(b); err != nil {
 		return nil, err
 	}
+	//log.Println("len(b):", len(b))
 
+	// 加密请求内容
 	n = IncrementNonce(n)
 	b, err = ant.AESGCMEncrypt(d, k, n)
 	if err != nil {
 		return nil, err
 	}
+	// 第三次写入 请求内容(请求地址)
 	if _, err := c.Write(b); err != nil {
 		return nil, err
 	}

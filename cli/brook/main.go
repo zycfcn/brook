@@ -17,6 +17,7 @@ var debug bool
 var debugAddress string
 
 func main() {
+	// 1 实例化一个命令行参数对象（github.com/urfave/cli 一个开源包用于构建命令行应用程序:方便的命令行构建）
 	app := cli.NewApp()
 	app.Name = "Brook"
 	app.Version = "20171113"
@@ -67,12 +68,14 @@ func main() {
 			},
 			Action: func(c *cli.Context) error {
 				if c.String("listen") == "" || c.String("password") == "" {
+					// 如果任意一个以上两个参数没写就显示 server 模式的help
 					cli.ShowCommandHelp(c, "server")
 					return nil
 				}
 				if debug {
 					enableDebug()
 				}
+				// 2 开启 server 模式
 				return brook.RunServer(c.String("listen"), c.String("password"), c.Int("tcpTimeout"), c.Int("tcpDeadline"), c.Int("udpDeadline"))
 			},
 		},
@@ -178,6 +181,7 @@ func main() {
 					enableDebug()
 				}
 				if c.Bool("http") {
+					// 2 运行模式为客户端HTTP代理模式
 					return brook.RunClientAsHTTP(c.String("listen"), c.String("ip"), c.String("server"), c.String("password"), c.Int("tcpTimeout"), c.Int("tcpDeadline"), c.Int("udpDeadline"), c.Int("udpSessionTime"))
 				}
 				return brook.RunClient(c.String("listen"), c.String("ip"), c.String("server"), c.String("password"), c.Int("tcpTimeout"), c.Int("tcpDeadline"), c.Int("udpDeadline"), c.Int("udpSessionTime"))

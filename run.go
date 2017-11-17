@@ -2,10 +2,14 @@ package brook
 
 // RunServer used to make a new Server and start to listen
 func RunServer(address, password string, tcpTimeout, tcpDeadline, udpDeadline int) error {
+	// 实例化一个服务并带有必要的参数(命令行敲出来的)
+	// 该服务会绑定一个tcp  和一个udp 协议端口
 	s, err := NewServer(address, password, tcpTimeout, tcpDeadline, udpDeadline)
 	if err != nil {
 		return err
 	}
+
+	// 3 运行服务
 	return s.ListenAndServe()
 }
 
@@ -20,10 +24,12 @@ func RunClient(address, ip, server, password string, tcpTimeout, tcpDeadline, ud
 
 // RunClientAsHTTP used to make a new Client and start a http proxy to listen
 func RunClientAsHTTP(address, ip, server, password string, tcpTimeout, tcpDeadline, udpDeadline, udpSessionTime int) error {
+	// 3 实例化一个客户端
 	c, err := NewClient(address, ip, server, password, tcpTimeout, tcpDeadline, udpDeadline, udpSessionTime)
 	if err != nil {
 		return err
 	}
+	// 3.1 开启一个 http 代理端口
 	return c.ListenAndServeHTTP(nil)
 }
 
